@@ -1,0 +1,16 @@
+{
+  "name": "support-intake-cli",
+  "version": "1.0.0",
+  "description": "A command-line tool that captures one support issue, uses AI to summarize it, and writes a structured intake record for the team.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "inquirer": "^13.4.2"
+  }
+}
