@@ -16,7 +16,7 @@ const ai = new GoogleGenAI({
 
 const command = process.argv[2];
 
-if (!command) {
+if (!command || command === "triage") {
   runTriage();
 } else if (command === "review") {
   reviewDraft();
@@ -145,6 +145,11 @@ async function runTriage() {
 // ===================== AI FUNCTION (WITH FALLBACK) =====================
 
 async function generateSummary(title, description) {
+  if (!process.env.GOOGLE_API_KEY) {
+    console.log("\n⚠️ GOOGLE_API_KEY not set -> using fallback mode\n");
+    return fallbackSummary(title, description);
+  }
+
   const prompt = `
 You are a support engineer assistant.
 
