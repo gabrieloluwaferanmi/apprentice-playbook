@@ -1,60 +1,189 @@
 # Schema Explanation – Order Ingestion Service
 
 ## Overview
-This schema is designed for an order ingestion system that pulls data from an external API and stores it in a local PostgreSQL database. It also tracks each sync operation to ensure reliability and debuggability.
+
+This schema supports an Order Ingestion Service built with MySQL, Express, and Node.js.
+
+The system simulates how backend services ingest order data from an external API, persist the data in a relational database, and track synchronization operations for observability and debugging.
+
+The database is designed to support:
+
+* order storage
+* synchronization tracking
+* duplicate prevention
+* relational integrity
+* efficient querying
 
 ---
 
-## 1. Orders Table
+# 1. Orders Table
 
-### Purpose
-The `orders` table stores all business data coming from the external system.
+## Purpose
 
-### Key Fields
+The `orders` table stores all synchronized order data received from the simulated external API.
 
-- `id`: Primary key used to uniquely identify each record.
-- `external_id`: Unique identifier from the external API.
-- `customer_name`: Name of the customer who placed the order.
-- `amount`: Monetary value of the order.
-- `status`: Current state of the order (e.g. pending, completed, failed).
-- `created_at`: Timestamp when the order was created.
-- `updated_at`: Timestamp for last update.
-
-### Key Design Decisions
-
-- **external_id is UNIQUE**  
-  This prevents duplicate orders when syncing multiple times (idempotency).
-
-- **amount uses DECIMAL(10,2)**  
-  This ensures accurate financial representation without floating point errors.
-
-- **Status constraint (optional improvement)**  
-  Limits values to valid states for data consistency.
+Each record represents a single customer order.
 
 ---
 
-## 2. Sync Runs Table
+## Key Fields
 
-### Purpose
-The `sync_runs` table tracks each attempt to sync data from the external API.
-
-### Key Fields
-
-- `id`: Primary key for each sync attempt.
-- `started_at`: When the sync process began.
-- `finished_at`: When the sync process ended.
-- `status`: Outcome of the sync (success, failed, running).
-- `error_message`: Stores failure details if something goes wrong.
-
-### Key Design Decisions
-
-- This table allows **debugging and observability** of the sync process.
-- Each sync run is independent, making retries safe and traceable.
+| Field           | Purpose                                                      |
+| --------------- | ------------------------------------------------------------ |
+| `id`            | Internal primary key for each order                          |
+| `external_id`   | Unique identifier from the external system                   |
+| `customer_name` | Name of the customer                                         |
+| `amount`        | Monetary value of the order                                  |
+| `status`        | Current order state                                          |
+| `sync_run_id`   | References the synchronization run responsible for ingestion |
+| `created_at`    | Timestamp when order was created                             |
+| `updated_at`    | Timestamp when order was last updated                        |
 
 ---
 
-## 3. Indexing Strategy
+## Key Design Decisions
 
-### Index on external_id
+### Unique External ID
+
 ```sql
-CREATE INDEX idx_orders_external_id ON orders(external_id);
+external_id UNIQUE
+```
+
+The external ID is unique to support idempotency and prevent duplicate order insertion during repeated synchronization runs.
+
+---
+
+### ENUM Status Values
+
+```sql
+ENUM('pending', 'completed', 'failed')
+```
+
+This restricts status values to valid business states and improves data consistency.
+
+---
+
+### Financial Precision
+
+```sql
+DECIMAL(10,2)
+```
+
+Used for accurate monetary storage while avoiding floating-point precision issues.
+
+---
+
+### Foreign Key Relationship
+
+```sql
+FOREIGN KEY (sync_run_id)
+REFERENCES sync_runs(id)
+```
+
+This establishes a relationship between orders and synchronization runs.
+
+It allows the system to track which sync operation inserted specific orders.
+
+---
+
+# 2. Sync Runs Table
+
+## Purpose
+
+The `sync_runs` table tracks each synchronization attempt performed by the ingestion service.
+
+This improves observability and enables debugging of ingestion workflows.
+
+---
+
+## Key Fields
+
+| Field           | Purpose                                 |
+| --------------- | --------------------------------------- |
+| `id`            | Primary key for synchronization runs    |
+| `started_at`    | Timestamp when sync operation began     |
+| `finished_at`   | Timestamp when sync operation completed |
+| `status`        | Current sync state                      |
+| `error_message` | Stores failure/debugging information    |
+
+---
+
+## Key Design Decisions
+
+### Sync Tracking
+
+Each synchronization operation is stored independently.
+
+This allows:
+
+* traceability
+* debugging
+* monitoring
+* retry support
+
+---
+
+### ENUM Status Values
+
+```sql
+ENUM('success', 'failed', 'running')
+```
+
+Ensures synchronization states remain valid and predictable.
+
+---
+
+# 3. Indexing Strategy
+
+## Orders External ID Index
+
+```sql
+CREATE INDEX idx_orders_external_id
+ON orders(external_id);
+```
+
+Improves lookup speed for order synchronization and duplicate detection.
+
+---
+
+## Sync Run Status Index
+
+```sql
+CREATE INDEX idx_sync_runs_status
+ON sync_runs(status);
+```
+
+Optimizes filtering and querying synchronization operations by status.
+
+---
+
+# 4. Backend Integration
+
+The schema integrates with an Express backend service that exposes REST API endpoints.
+
+## API Endpoints
+
+### GET /orders
+
+Retrieves all synchronized orders from MySQL.
+
+### POST /sync-orders
+
+Simulates ingestion of external orders by:
+
+1. creating a synchronization run
+2. inserting new orders
+3. preventing duplicates
+4. updating synchronization status
+
+---
+
+# 5. Outcome
+
+This schema provides a lightweight but production-inspired relational foundation for:
+
+* ingestion workflows
+* synchronization tracking
+* backend API integration
+* idempotent order processing
+* relational data management
