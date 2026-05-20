@@ -7,6 +7,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+/*
+====================================
+DATABASE 1 CONNECTION
+====================================
+*/
+
 const pool = mysql.createPool({
   host: 'localhost',
   user: 'root',
@@ -14,12 +20,37 @@ const pool = mysql.createPool({
   database: 'order_service'
 });
 
-// Home route
-app.get('/', (req, res) => {
-  res.send('Order Sync Service Running');
+/*
+====================================
+DATABASE 2 CONNECTION
+====================================
+*/
+
+const secondPool = mysql.createPool({
+  host: 'localhost',
+  user: 'root',
+  password: '2846',
+  database: 'order_service_2'
 });
 
-// Get all orders
+/*
+====================================
+HOME ROUTE
+====================================
+*/
+
+app.get('/', (req, res) => {
+
+  res.send('Order Sync Service Running');
+
+});
+
+/*
+====================================
+GET ALL ORDERS
+====================================
+*/
+
 app.get('/orders', async (req, res) => {
 
   try {
@@ -40,12 +71,96 @@ app.get('/orders', async (req, res) => {
   }
 });
 
-// Sync orders route
+/*
+====================================
+GET SYNC RUNS
+====================================
+*/
+
+app.get('/sync-runs', async (req, res) => {
+
+  try {
+
+    const [rows] = await pool.query(
+      'SELECT * FROM sync_runs'
+    );
+
+    res.json(rows);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Failed to fetch sync runs'
+    });
+  }
+});
+
+/*
+====================================
+MANUALLY ADD ORDER
+====================================
+*/
+
+app.post('/add-order', async (req, res) => {
+
+  try {
+
+    const {
+      external_id,
+      customer_name,
+      amount,
+      status
+    } = req.body;
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO orders(
+        external_id,
+        customer_name,
+        amount,
+        status
+      )
+      VALUES (?, ?, ?, ?)
+      `,
+      [
+        external_id,
+        customer_name,
+        amount,
+        status
+      ]
+    );
+
+    res.json({
+      message: 'Order added successfully',
+      orderId: result.insertId
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Failed to add order'
+    });
+  }
+});
+
+/*
+====================================
+SYNC FAKE EXTERNAL ORDERS
+====================================
+*/
+
 app.post('/sync-orders', async (req, res) => {
 
   try {
 
-    // Create sync run
+    /*
+    CREATE SYNC RUN
+    */
+
     const [syncRun] = await pool.query(
       `
       INSERT INTO sync_runs(status)
@@ -55,7 +170,10 @@ app.post('/sync-orders', async (req, res) => {
 
     const syncRunId = syncRun.insertId;
 
-    // Fake external API data
+    /*
+    SIMULATED EXTERNAL API DATA
+    */
+
     const fakeOrders = [
       {
         external_id: 'ORD-2001',
@@ -71,7 +189,10 @@ app.post('/sync-orders', async (req, res) => {
       }
     ];
 
-    // Insert orders
+    /*
+    INSERT ORDERS
+    */
+
     for (const order of fakeOrders) {
 
       await pool.query(
@@ -95,7 +216,10 @@ app.post('/sync-orders', async (req, res) => {
       );
     }
 
-    // Mark sync success
+    /*
+    UPDATE SYNC STATUS
+    */
+
     await pool.query(
       `
       UPDATE sync_runs
@@ -121,8 +245,101 @@ app.post('/sync-orders', async (req, res) => {
   }
 });
 
+/*
+====================================
+SYNC DATABASE 1 TO DATABASE 2
+====================================
+*/
+
+app.post('/sync-to-second-db', async (req, res) => {
+
+  try {
+
+    /*
+    GET ALL ORDERS FROM DATABASE 1
+    */
+
+    const [orders] = await pool.query(
+      'SELECT * FROM orders'
+    );
+
+    /*
+    INSERT INTO DATABASE 2
+    */
+
+    for (const order of orders) {
+
+      await secondPool.query(
+        `
+        INSERT IGNORE INTO orders(
+          external_id,
+          customer_name,
+          amount,
+          status,
+          sync_run_id
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          order.external_id,
+          order.customer_name,
+          order.amount,
+          order.status,
+          order.sync_run_id
+        ]
+      );
+    }
+
+    res.json({
+      message: 'Data synced to second database successfully'
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Database sync failed'
+    });
+  }
+});
+
+/*
+====================================
+GET ORDERS FROM SECOND DATABASE
+====================================
+*/
+
+app.get('/orders-db2', async (req, res) => {
+
+  try {
+
+    const [rows] = await secondPool.query(
+      'SELECT * FROM orders'
+    );
+
+    res.json(rows);
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Failed to fetch second database orders'
+    });
+  }
+});
+
+/*
+====================================
+START SERVER
+====================================
+*/
+
 app.listen(3000, () => {
+
   console.log(
     'Server running on http://localhost:3000'
   );
+
 });
