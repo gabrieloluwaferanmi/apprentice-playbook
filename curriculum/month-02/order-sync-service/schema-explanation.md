@@ -374,3 +374,120 @@ The service now supports:
 - backend workflow orchestration
 
 The architecture reflects foundational backend engineering and database management practices commonly used in real-world systems.
+---
+
+# 10. Frontend Dashboard Layer
+
+The project now includes a frontend dashboard built with:
+
+- HTML
+- CSS
+- Vanilla JavaScript
+
+The frontend communicates directly with the Express REST API layer.
+
+This provides a visual interface for interacting with the synchronization system.
+
+---
+
+# Database Views
+
+The dashboard contains two tabbed database views.
+
+---
+
+## Database 1 View
+
+This view represents the primary ingestion database.
+
+Features include:
+
+- live table view of orders
+- modal-based order creation
+- API-driven ingestion workflow
+
+The interface connects to:
+
+```text
+GET /orders
+POST /add-order
+```
+
+---
+
+## Database 2 View
+
+This view represents the synchronized replica database.
+
+Features include:
+
+- synchronization trigger button
+- live table visualization of replicated records
+
+The interface connects to:
+
+```text
+POST /sync-to-second-db
+GET /orders-db2
+```
+
+---
+
+# Frontend to Backend Data Flow
+
+```text
+Frontend Dashboard
+        ↓
+Express REST API
+        ↓
+Primary MySQL Database
+        ↓
+Synchronization Layer
+        ↓
+Secondary MySQL Database
+```
+
+---
+
+# Synchronization Workflow
+
+The synchronization process now demonstrates how backend systems replicate records between databases.
+
+The workflow is:
+
+1. records are inserted into Database 1
+2. synchronization endpoint is triggered
+3. backend service reads records
+4. records are inserted into Database 2
+5. replicated data becomes visible in the dashboard
+
+---
+
+# Full-Stack Architecture
+
+The project now demonstrates a lightweight full-stack synchronization platform consisting of:
+
+- frontend dashboard
+- REST API layer
+- backend orchestration
+- relational databases
+- synchronization tooling
+- CLI automation
+
+---
+
+# Final Outcome
+
+The Order Sync Service evolved from a basic schema exercise into a more complete backend and full-stack synchronization platform.
+
+The system now supports:
+
+- REST API ingestion
+- synchronization tracking
+- frontend visualization
+- database replication
+- CLI automation
+- operational workflows
+- relational persistence
+
+The architecture reflects foundational backend engineering and full-stack development concepts commonly used in real-world systems.
